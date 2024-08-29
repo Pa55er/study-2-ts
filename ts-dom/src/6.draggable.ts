@@ -30,3 +30,45 @@
         list.addEventListener("dragenter", (e) => moveList(e.target as HTMLLIElement));
     });
 }
+
+// {
+//     const getById = <T extends HTMLElement>(id: string): T => {
+//         const $el = document.getElementById(id);
+//         if (!$el) throw new Error("해당 요소는 존재하지 않습니다.");
+//         return $el as T;
+//     };
+//     const $draggableList = getById<HTMLUListElement>("draggable-list");
+//     let selected: HTMLLIElement | null = null;
+
+//     const toggleDragging = ($target: HTMLLIElement, state: boolean) => {
+//         $target.classList.toggle("dragging", state);
+//         selected = state ? $target : null;
+//     };
+
+//     $draggableList.addEventListener("dragstart", (event) => {
+//         const { target } = event;
+//         if (target instanceof HTMLLIElement) {
+//             toggleDragging(target, true);
+//         }
+//     });
+//     $draggableList.addEventListener("dragover", (event) => {
+//         const { target } = event;
+//         if (target === selected || !(target instanceof HTMLLIElement)) {
+//             return;
+//         }
+//         const { clientY } = event;
+//         const { top, height } = target.getBoundingClientRect();
+//         // dragover 상태 = selected가 무조건!! 존재하기 때문에 `!`
+//         if (clientY > top + height / 2) {
+//             target.after(selected!);
+//         } else {
+//             target.before(selected!);
+//         }
+//     });
+//     $draggableList.addEventListener("dragend", (event) => {
+//         const { target } = event;
+//         if (target instanceof HTMLLIElement) {
+//             toggleDragging(target, false);
+//         }
+//     });
+// }
