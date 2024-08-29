@@ -9,56 +9,42 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 {
-    const getElement = (id) => {
-        const element = document.getElementById(id);
-        if (!element)
-            throw new Error(`Element with id '${id}' not found`);
+    const selectElement = (selector) => {
+        const element = document.querySelector(selector);
+        if (!element) {
+            throw new Error(`Element with selector "${selector}" not found`);
+        }
         return element;
     };
-    const loader = document.createElement("div");
-    loader.classList.add("loader");
-    loader.innerHTML = `
-            <span></span>
-            <span></span>
-            <span></span>
-        `;
-    document.querySelector(".wrap").appendChild(loader);
-    const $loader = document.querySelector(".loader");
-    const elements = {
-        $postsCon: getElement("posts-con"),
-        $filter: getElement("filter"),
+    const createLoader = () => {
+        const loader = document.createElement("div");
+        loader.classList.add("loader");
+        loader.innerHTML = `<span></span><span></span><span></span>`;
+        selectElement(".wrap").appendChild(loader);
     };
-    let limit = 5;
-    let page = 1;
-    let isLoading = false;
-    let currentTerm = "";
-    let isCheckingScroll = false;
-    let noMore = false;
+    const state = {
+        limit: 5,
+        page: 1,
+        isLoading: false,
+        currentTerm: "",
+        isCheckingScroll: false,
+        noMore: false,
+    };
     const getPosts = (...args_1) => __awaiter(void 0, [...args_1], void 0, function* (searchTerm = "") {
-        try {
-            let url = `https://jsonplaceholder.typicode.com/posts?_limit=${limit}&_page=${page}`;
-            if (searchTerm) {
-                url += `&q=${encodeURIComponent(searchTerm)}`;
-            }
-            const res = yield fetch(url);
-            const data = yield res.json();
-            if (data.length === 0) {
-                noMore = true;
-            }
-            return data;
+        const url = new URL("https://jsonplaceholder.typicode.com/posts");
+        url.searchParams.append("_limit", state.limit.toString());
+        url.searchParams.append("_page", state.page.toString());
+        if (searchTerm) {
+            url.searchParams.append("q", searchTerm);
         }
-        catch (error) {
-            if (error instanceof Error) {
-                throw new Error(`Error : ${error.message} `);
-            }
-            else {
-                throw new Error(`Error : An unknown error occurred `);
-            }
-        }
+        const res = yield fetch(url.toString());
+        const data = yield res.json();
+        state.noMore = data.length === 0;
+        return data;
     });
-    const showPosts = (element) => __awaiter(void 0, void 0, void 0, function* () {
-        const posts = yield getPosts(currentTerm);
-        console.log(posts);
+    const showPosts = () => __awaiter(void 0, void 0, void 0, function* () {
+        const posts = yield getPosts(state.currentTerm);
+        const $postsCon = selectElement("#posts-con");
         posts.forEach((post) => {
             const postElm = document.createElement("li");
             postElm.classList.add("post");
@@ -68,62 +54,70 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
                 <h2 class="post-title">${post.title}</h2>
                 <p class="post-body">${post.body}</p>
             </div>
-            `;
-            element.appendChild(postElm);
+        `;
+            $postsCon.appendChild(postElm);
         });
         checkScrollable();
     });
-    const newLoading = () => {
-        if (isLoading)
+    const loadNewPosts = () => __awaiter(void 0, void 0, void 0, function* () {
+        if (state.isLoading || state.noMore)
             return;
-        isLoading = true;
-        $loader.classList.add("show");
-        setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
-            page++;
-            console.log(page);
-            yield showPosts(elements.$postsCon);
-            isLoading = false;
-            $loader.classList.remove("show");
-        }), 1000);
-    };
+        state.isLoading = true;
+        selectElement(".loader").classList.add("show");
+        try {
+            state.page++;
+            yield showPosts();
+        }
+        finally {
+            state.isLoading = false;
+            selectElement(".loader").classList.remove("show");
+        }
+    });
     const checkScrollable = () => {
-        if (isCheckingScroll)
+        if (state.isCheckingScroll)
             return;
-        isCheckingScroll = true;
+        state.isCheckingScroll = true;
         const checkAndLoad = () => {
-            if (document.documentElement.scrollHeight <= window.innerHeight && !noMore) {
-                newLoading();
-                setTimeout(checkAndLoad, 1500);
+            if (document.documentElement.scrollHeight <= window.innerHeight && !state.noMore) {
+                loadNewPosts().then(() => setTimeout(checkAndLoad, 1500));
             }
             else {
-                isCheckingScroll = false;
+                state.isCheckingScroll = false;
             }
         };
         checkAndLoad();
     };
-    window.addEventListener("scroll", () => {
-        const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-        if (scrollTop + clientHeight >= scrollHeight - 20) {
-            newLoading();
-        }
-    });
-    const filterPosts = ($filter, $postsCon) => {
+    const addScrollListener = () => {
+        window.addEventListener("scroll", () => {
+            const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+            if (scrollTop + clientHeight >= scrollHeight - 20) {
+                loadNewPosts();
+            }
+        });
+    };
+    const filterPosts = () => {
+        const $filter = selectElement("#filter");
         const searchTerm = $filter.value.trim();
-        if (searchTerm !== currentTerm) {
-            currentTerm = searchTerm;
-            page = 1;
-            $postsCon.innerHTML = "";
-            showPosts(elements.$postsCon);
-            noMore = true;
+        if (searchTerm !== state.currentTerm) {
+            state.currentTerm = searchTerm;
+            state.page = 1;
+            state.noMore = false;
+            selectElement("#posts-con").innerHTML = "";
+            showPosts();
         }
     };
-    elements.$filter.addEventListener("keyup", (e) => {
-        if (e.key === "Enter") {
-            const { $postsCon, $filter } = elements;
-            filterPosts($filter, $postsCon);
-        }
-    });
-    showPosts(elements.$postsCon).then(() => {
-        checkScrollable();
-    });
+    const addKeyListener = () => {
+        selectElement("#filter").addEventListener("keyup", (e) => {
+            if (e.key === "Enter") {
+                filterPosts();
+            }
+        });
+    };
+    const initialize = () => {
+        createLoader();
+        addScrollListener();
+        addKeyListener();
+        showPosts();
+    };
+    initialize();
 }
